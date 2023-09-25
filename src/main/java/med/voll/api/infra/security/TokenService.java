@@ -2,6 +2,8 @@ package med.voll.api.infra.security;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTCreationException;
+import com.auth0.jwt.exceptions.JWTVerificationException;
 import med.voll.api.domain.usuario.Usuario;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -16,13 +18,32 @@ public class TokenService {
     @Value("${api.security.token.secret}")
     private String secret;
 
+    private static final String ISSUER = "API Voll.med";
+
     public String gerarToken(Usuario usuario) {
-        var algoritmo = Algorithm.HMAC256(secret);
-        return JWT.create()
-                .withIssuer("API Voll.med")
-                .withSubject(usuario.getLogin())
-                .withExpiresAt(dataExpiracao())
-                .sign(algoritmo);
+        try {
+            var algoritmo = Algorithm.HMAC256(secret);
+            return JWT.create()
+                    .withIssuer(ISSUER)
+                    .withSubject(usuario.getLogin())
+                    .withExpiresAt(dataExpiracao())
+                    .sign(algoritmo);
+        } catch(JWTCreationException ex) {
+            throw new RuntimeException("Error ao gerar o token JWT", ex);
+        }
+    }
+
+    public String getSubject(String TokenJWT) {
+        try {
+            var algoritmo = Algorithm.HMAC256(secret);
+            return JWT.require(algoritmo)
+                    .withIssuer(ISSUER)
+                    .build()
+                    .verify(TokenJWT)
+                    .getSubject();
+        } catch (JWTVerificationException ex){
+            throw new RuntimeException("Error ao verificar o token JWT", ex);
+        }
     }
 
     private Instant dataExpiracao() {
